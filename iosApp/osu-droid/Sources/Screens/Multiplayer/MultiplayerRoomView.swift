@@ -141,11 +141,11 @@ struct MultiplayerRoomView: View {
                             }
                             .padding(8)
                         }
-                        .onChange(of: chatMessages.count) {
+                        .onChange(of: chatMessages.count, perform: { _ in
                             if let last = chatMessages.last {
                                 proxy.scrollTo(last.id, anchor: .bottom)
                             }
-                        }
+                        })
                     }
 
                     // Chat input

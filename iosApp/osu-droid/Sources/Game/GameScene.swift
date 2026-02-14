@@ -23,7 +23,7 @@ final class GameScene: SKScene {
     private var currentTime: Double = 0 // milliseconds
     private var startTime: Date?
     private var audioOffset: Double = 0
-    private var isPaused = false
+    private var isGamePaused = false
     private var isGameActive = false
 
     // MARK: - Scoring
@@ -212,13 +212,13 @@ final class GameScene: SKScene {
     }
 
     func pauseGame() {
-        isPaused = true
+        isGamePaused = true
         isGameActive = false
         gameDelegate?.gameDidPause()
     }
 
     func resumeGame() {
-        isPaused = false
+        isGamePaused = false
         isGameActive = true
         startTime = Date().addingTimeInterval(-currentTime / 1000.0)
         gameDelegate?.gameDidResume()
