@@ -2,12 +2,12 @@ name: Build iOS IPA
 
 on:
   push:
-    branches: [ios-port]
+    branches: [main, ios-port]
     paths:
       - 'iosApp/**'
       - '.github/workflows/build-ios.yml'
   pull_request:
-    branches: [master]
+    branches: [main]
     paths:
       - 'iosApp/**'
   workflow_dispatch:
@@ -15,18 +15,24 @@ on:
 jobs:
   build:
     name: Build unsigned IPA
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+      - name: List available Xcode versions
+        run: ls /Applications/ | grep Xcode
 
-      - name: Print Xcode version
-        run: xcodebuild -version
+      - name: Select Xcode
+        run: |
+          # Pick latest available Xcode
+          XCODE_PATH=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          echo "Using: $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          xcodebuild -version
+          swift --version
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -37,26 +43,20 @@ jobs:
           mkdir -p iosApp/osu-droid/Resources/SFX
           mkdir -p iosApp/osu-droid/Resources/Fonts
 
-          # Copy sprites
           cp assets/gfx/*.png iosApp/osu-droid/Resources/GFX/ 2>/dev/null || true
-
-          # Copy sounds
           cp assets/sfx/*.ogg iosApp/osu-droid/Resources/SFX/ 2>/dev/null || true
-
-          # Copy fonts
           cp assets/fonts/*.otf iosApp/osu-droid/Resources/Fonts/ 2>/dev/null || true
           cp assets/fonts/*.ttf iosApp/osu-droid/Resources/Fonts/ 2>/dev/null || true
-
-          # Copy root assets (logo, icons)
           cp assets/logo.png iosApp/osu-droid/Resources/ 2>/dev/null || true
-          cp assets/*.png iosApp/osu-droid/Resources/ 2>/dev/null || true
 
-          echo "Assets copied:"
-          find iosApp/osu-droid/Resources -type f | wc -l
+          echo "Assets copied: $(find iosApp/osu-droid/Resources -type f | wc -l) files"
 
       - name: Generate Xcode project
         working-directory: iosApp
-        run: xcodegen generate
+        run: |
+          xcodegen generate
+          echo "Project generated. Schemes:"
+          xcodebuild -project osu-droid.xcodeproj -list
 
       - name: Build archive
         working-directory: iosApp
@@ -69,25 +69,43 @@ jobs:
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGN_IDENTITY="-" \
             SKIP_INSTALL=NO \
             BUILD_LIBRARY_FOR_DISTRIBUTION=NO \
-            | xcpretty --color || true
+            2>&1 | tee build.log
+
+          # Check if archive was created
+          if [ ! -d "build/osu-droid.xcarchive" ]; then
+            echo "::error::Archive not created. Last 100 lines of build log:"
+            tail -100 build.log
+            exit 1
+          fi
 
       - name: Create unsigned IPA
         run: |
-          cd iosApp/build/osu-droid.xcarchive/Products/Applications
+          # Find the .app bundle
+          echo "Archive contents:"
+          find iosApp/build/osu-droid.xcarchive -name "*.app" -type d
 
-          # Create Payload directory structure
-          mkdir -p Payload
-          mv osu-droid.app Payload/
+          APP_PATH=$(find iosApp/build/osu-droid.xcarchive -name "*.app" -type d | head -1)
 
-          # Create IPA (just a ZIP with Payload/)
-          zip -r -q ../../../osu-droid-unsigned.ipa Payload
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::.app bundle not found in archive"
+            echo "Full archive structure:"
+            find iosApp/build/osu-droid.xcarchive -type f | head -50
+            exit 1
+          fi
+
+          echo "Found app at: $APP_PATH"
+
+          # Create Payload directory and IPA
+          mkdir -p iosApp/build/Payload
+          cp -r "$APP_PATH" iosApp/build/Payload/
+          cd iosApp/build
+          zip -r -q osu-droid-unsigned.ipa Payload
 
           echo "IPA created:"
-          ls -lh ../../../osu-droid-unsigned.ipa
+          ls -lh osu-droid-unsigned.ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -97,12 +115,11 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      - name: Upload archive (debug)
+      - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs
-          path: |
-            iosApp/build/osu-droid.xcarchive/
-            ~/Library/Developer/Xcode/DerivedData/**/Logs/
+          name: build-log
+          path: iosApp/build.log
           retention-days: 7
+          if-no-files-found: warn

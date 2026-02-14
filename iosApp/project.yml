@@ -3,8 +3,7 @@ options:
   bundleIdPrefix: com.osudroid
   deploymentTarget:
     iOS: "16.0"
-  xcodeVersion: "15.0"
-  generateEmptyDirectories: true
+  createIntermediateGroups: true
 
 settings:
   base:
@@ -23,28 +22,18 @@ targets:
     platform: iOS
     sources:
       - path: osu-droid/Sources
-        type: group
       - path: osu-droid/Resources
-        type: group
         optional: true
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.osudroid.app
         INFOPLIST_FILE: osu-droid/Info.plist
-        SUPPORTED_PLATFORMS: iphoneos iphonesimulator
-        SUPPORTS_MACCATALYST: false
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: true
         SWIFT_EMIT_LOC_STRINGS: true
-        # Landscape only
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UILaunchScreen_Generation: true
-        # Audio background mode
-        INFOPLIST_KEY_UIBackgroundModes: audio
-        # Full screen
-        INFOPLIST_KEY_UIRequiresFullScreen: true
-        INFOPLIST_KEY_UIStatusBarHidden: true
       configs:
         Debug:
           SWIFT_OPTIMIZATION_LEVEL: "-Onone"
@@ -53,11 +42,6 @@ targets:
           SWIFT_OPTIMIZATION_LEVEL: "-O"
           SWIFT_COMPILATION_MODE: wholemodule
     dependencies: []
-    preBuildScripts: []
-    scheme:
-      testTargets: []
-      gatherCoverageData: false
-      commandLineArguments: {}
 
 schemes:
   osu-droid:

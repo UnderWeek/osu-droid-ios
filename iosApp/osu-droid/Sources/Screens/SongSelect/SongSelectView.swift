@@ -37,7 +37,7 @@ struct SongSelectView: View {
             HStack(spacing: 0) {
                 // Left panel: Beatmap info
                 leftPanel
-                    .frame(width: UIScreen.main.bounds.width * 0.4)
+                    .frame(width: UIScreen.main.bounds.width /* TODO: use GeometryReader */ * 0.4)
 
                 // Right panel: Beatmap list
                 rightPanel

@@ -141,7 +141,7 @@ struct MultiplayerRoomView: View {
                             }
                             .padding(8)
                         }
-                        .onChange(of: chatMessages.count) { _ in
+                        .onChange(of: chatMessages.count) {
                             if let last = chatMessages.last {
                                 proxy.scrollTo(last.id, anchor: .bottom)
                             }
